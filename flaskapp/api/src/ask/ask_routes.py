@@ -24,7 +24,7 @@ def handle_query():
     
         query = body["query"]
         # return jsonify({"month": month})
-        response = using_spacy(query)
+        response = using_mn(query)
         return jsonify({"response": response})
     except Exception as e:
         # Handle other types of errors
@@ -47,28 +47,24 @@ def handle_query():
 
 ############[Basic Query tokenize function]############
 def using_mn(query):
-    tokens = query.lower().split()  # Convert query to lowercase and split into tokens
+    tokens = query.lower().split()  # Convert query to lowercase and split into tokens(array[.....])
     # Simple keyword matching to identify query type
     if 'top' in tokens and 'earning' in tokens and 'sale' in tokens and 'item' in tokens:
         answer = top_earning_sale_item()
     elif 'city' in tokens and ('best' in tokens or 'top' in tokens) and 'sales' in tokens:
         answer = best_sales_city()
     elif 'top' in tokens and 'products' in tokens and 'highest' in tokens and 'total' in tokens and 'sales' in tokens and 'last' in tokens and 'quarter' in tokens and 'shipped' in tokens and 'minimum' in tokens and 'order' in tokens and 'quantity' in tokens:
-        answer = Sales_Performance_Analysis()
+        answer = sales_performance_analysis(sales_data)
     elif 'customers' in tokens and 'orders' in tokens and 'above' in tokens and 'usa' in tokens and 'france' in tokens:
-        answer = Customer_Segmentation_Query()
+        answer = customers_segmentation_query()
     elif 'month' in tokens and 'highest' in tokens and 'average' in tokens and 'order' in tokens and 'quantity' in tokens and 'total' in tokens and 'sales' in tokens and 'product' in tokens and 'price' in tokens:
-        answer = Product_Demand_Fluctuation()
-    elif 'regional' in tokens and 'sales' in tokens and 'comparison' in tokens and 'average' in tokens and 'order' in tokens and 'value' in tokens and 'two' in tokens and 'specific' in tokens and 'states' in tokens and 'shipped' in tokens:
-        answer = Regional_Sales_Comparison()
-    elif 'orders' in tokens and 'first' in tokens and 'half' in tokens and 'highest' in tokens and 'proportion' in tokens and 'shipped' in tokens and 'days' in tokens and 'order' in tokens and 'placement' in tokens:
-        answer = Order_Fulfillment_Efficiency()
-    elif 'month' in tokens and 'sales' in tokens and 'category' in tokens and 'increased' in tokens and 'average' in tokens and 'price' in tokens:
-        answer = Sales_Trend_Analysis()
-    else:
-        answer = "I'm sorry, I couldn't understand your query."
-    return answer
-
+        answer = product_demand_flunctuation()
+    # elif 'regional' in tokens and 'sales' in tokens and 'comparison' in tokens and 'average' in tokens and 'order' in tokens and 'value' in tokens and 'two' in tokens and 'specific' in tokens and 'states' in tokens and 'shipped' in tokens:
+    #     answer = Regional_Sales_Comparison()
+    # elif 'orders' in tokens and 'first' in tokens and 'half' in tokens and 'highest' in tokens and 'proportion' in tokens and 'shipped' in tokens and 'days' in tokens and 'order' in tokens and 'placement' in tokens:
+    #     answer = Order_Fulfillment_Efficiency()
+    # elif 'month' in tokens and 'sales' in tokens and 'category' in tokens and 'increased' in tokens and 'average' in tokens and 'price' in tokens:
+    #     answer = Sales_Trend_Analysis()
     else:
         answer = "I'm sorry, I couldn't understand your query."
     return answer
@@ -118,7 +114,7 @@ def using_mn(query):
 ############[Function to find the top earning sale item]############
 def top_earning_sale_item():
     top_item = sales_data.groupby('ORDERNUMBER')['SALES'].sum().idxmax()
-    return f"The top earning sale item is {top_item}."
+    return f"The top earning sale order is {top_item}."
 
 ############[Function to find the city with the best sales]############
 def best_sales_city():
@@ -133,10 +129,11 @@ def sales_performance_analysis(df):
                        (df['STATUS'] == 'Shipped') &
                        (df['QUANTITYORDERED'] >= 40)]
     # Group by product and calculate total sales
-    product_sales = filtered_data.groupby('Product Name')['Sales'].sum()
+    product_sales = filtered_data.groupby('ORDERNUMBER')['SALES'].sum()
     # Get top 5 products with highest total sales
     top_products = product_sales.nlargest(5)
-    return top_products
+
+    return top_products.to_json(orient='records')
 
 ############[Function to Execute Customer Segmentation Query]############
 def customers_segmentation_query(df):
