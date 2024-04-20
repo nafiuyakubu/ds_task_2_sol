@@ -1,4 +1,4 @@
-FROM python:3.8-slim-buster
+FROM python:3.9-slim-buster
 
 # Set an argument for the source directory and env variable for the source
 ARG SOURCE_DIR= .

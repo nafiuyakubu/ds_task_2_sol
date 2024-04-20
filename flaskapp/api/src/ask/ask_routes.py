@@ -1,16 +1,21 @@
 from flask import Blueprint, request, jsonify, abort, make_response
-import spacy
+import os
 import pandas as pd
-import numpy as np
+from langchain.llms  import OpenAI
+from langchain_experimental.agents import create_csv_agent
+
+
+os.environ['OPENAI_API_KEY'] = "YOUR_OPENAI_API_KEY" 
+agent = create_csv_agent(OpenAI(temperature=0), 'sales_data_sample.csv', verbose=True)
+
 
 ask_bp = Blueprint('ask', __name__)
 
 
-# Load our dataset
-sales_data = pd.read_csv('sales_data_sample.csv')
-# Load the spaCy English model with NER component
-nlp = spacy.load("en_core_web_sm")
-
+def handle_question(questions):
+    questions.lower() # Converting questions to lowercase
+    output = agent.run(questions) # Running the agent to process the questions
+    return output
 
 @ask_bp.route('/ask', methods=['POST'])
 def handle_query():
@@ -23,276 +28,12 @@ def handle_query():
             return jsonify({'error': error_message}), 400
     
         query = body["query"]
-        # return jsonify({"month": month})
-        response = using_mn(query)
+        # return jsonify({"month": query})
+        response = handle_question(query)
         return jsonify({"response": response})
     except Exception as e:
         # Handle other types of errors
         return jsonify({"error": f"An error occurred: {e}"}), 500
 
 
-# def using_spacy(query):
-#     # Perform NER(Named entity recognition) on the query
-#     doc = nlp(query)
-#     # Extract entities from the query
-#     entities = {ent.label_: ent.text for ent in doc.ents}
-#     # Identify query type based on entities
-#     if 'PRODUCT' in entities and 'top' in query.lower() and ('earning' in query.lower() or 'sold' in query.lower()):
-#         answer = top_earning_sale_item()
-#     elif 'GPE' in entities and ('city' in query.lower() or 'cities' in query.lower()) and ('best' in query.lower() or 'top' in query.lower()):
-#         answer = best_sales_city()
-#     else:
-#         answer = "I'm sorry, I couldn't understand your query."
-#     return answer
 
-############[Basic Query tokenize function]############
-def using_mn(query):
-    tokens = query.lower().split()  # Convert query to lowercase and split into tokens(array[.....])
-    # Simple keyword matching to identify query type
-    if 'top' in tokens and 'earning' in tokens and 'sale' in tokens and 'item' in tokens:
-        answer = top_earning_sale_item()
-    elif 'city' in tokens and ('best' in tokens or 'top' in tokens) and 'sales' in tokens:
-        answer = best_sales_city()
-    elif 'top' in tokens and 'products' in tokens and 'highest' in tokens and 'total' in tokens and 'sales' in tokens and 'last' in tokens and 'quarter' in tokens and 'shipped' in tokens and 'minimum' in tokens and 'order' in tokens and 'quantity' in tokens:
-        answer = sales_performance_analysis(sales_data)
-    elif 'customers' in tokens and 'orders' in tokens and 'above' in tokens and 'usa' in tokens and 'france' in tokens:
-        answer = customers_segmentation_query()
-    elif 'month' in tokens and 'highest' in tokens and 'average' in tokens and 'order' in tokens and 'quantity' in tokens and 'total' in tokens and 'sales' in tokens and 'product' in tokens and 'price' in tokens:
-        answer = product_demand_flunctuation()
-    # elif 'regional' in tokens and 'sales' in tokens and 'comparison' in tokens and 'average' in tokens and 'order' in tokens and 'value' in tokens and 'two' in tokens and 'specific' in tokens and 'states' in tokens and 'shipped' in tokens:
-    #     answer = Regional_Sales_Comparison()
-    # elif 'orders' in tokens and 'first' in tokens and 'half' in tokens and 'highest' in tokens and 'proportion' in tokens and 'shipped' in tokens and 'days' in tokens and 'order' in tokens and 'placement' in tokens:
-    #     answer = Order_Fulfillment_Efficiency()
-    # elif 'month' in tokens and 'sales' in tokens and 'category' in tokens and 'increased' in tokens and 'average' in tokens and 'price' in tokens:
-    #     answer = Sales_Trend_Analysis()
-    else:
-        answer = "I'm sorry, I couldn't understand your query."
-    return answer
-
-# def using_nltk(query):
-#     # Set the Predefined Query keywords for each query type
-#     query_keywords = {
-#         'top_earning_sale_item': ['top', 'earning', 'sale', 'item'],
-#         'best_sales_city': ['city', 'best', 'sales']
-#     }
-#     tokens = word_tokenize(query.lower())  # Tokenize and convert query to lowercase
-#     query_keywords = extract_keywords(tokens) # Extract keywords from the query
-#     # Calculate similarity scores for each query type
-#     similarity_scores = {query_type: calculate_similarity(query_keywords, keywords) for query_type, keywords in query_keywords.items()}
-#     # Identify the query type with the highest similarity score
-#     best_query_type = max(similarity_scores, key=similarity_scores.get)
-
-#     # Generate answer based on the identified query type
-#     if best_query_type == 'top_earning_sale_item':
-#         answer = top_earning_sale_item()
-#     elif best_query_type == 'best_sales_city':
-#         answer = best_sales_city()
-#     else:
-#         answer = "I'm sorry, I couldn't understand your query."
-#     return answer
-
-# ############[Function to extract keywords from the query]############
-# def extract_keywords(tokens):
-#     query_keywords = {}
-#     for query_type, keywords in query_keywords.items():
-#         query_keywords[query_type] = [word for word in tokens if word in keywords]
-#     return query_keywords
-
-# ############[# Function to calc similarity between query keywords and predefined keywordsy]############
-# def calculate_similarity(query_keywords, predefined_keywords):
-#     query_text = ' '.join(query_keywords)
-#     predefined_text = ' '.join(predefined_keywords)
-    
-#     vectorizer = TfidfVectorizer()
-#     tfidf_matrix = vectorizer.fit_transform([query_text, predefined_text])
-#     similarity_score = cosine_similarity(tfidf_matrix)[0, 1]
-#     return similarity_score
-
-
-
-############-----------------------[Start Sales Analysis Clac Function]----------------------------############
-############[Function to find the top earning sale item]############
-def top_earning_sale_item():
-    top_item = sales_data.groupby('ORDERNUMBER')['SALES'].sum().idxmax()
-    return f"The top earning sale order is {top_item}."
-
-############[Function to find the city with the best sales]############
-def best_sales_city():
-    best_city = sales_data.groupby('CITY')['SALES'].sum().idxmax()
-    return f"The city with the best sales is {best_city}."
-
-############[Function to Execute Sales Performance Analysis]############
-def sales_performance_analysis(df):
-    # Filter data for the last quarter of 2003, shipped orders, and minimum order quantity of 40 units
-    filtered_data = df[(pd.to_datetime(df['ORDERDATE']).dt.year == 2003) & 
-                       (pd.to_datetime(df['ORDERDATE']).dt.quarter == 4) &
-                       (df['STATUS'] == 'Shipped') &
-                       (df['QUANTITYORDERED'] >= 40)]
-    # Group by product and calculate total sales
-    product_sales = filtered_data.groupby('ORDERNUMBER')['SALES'].sum()
-    # Get top 5 products with highest total sales
-    top_products = product_sales.nlargest(5)
-
-    return top_products.to_json(orient='records')
-
-############[Function to Execute Customer Segmentation Query]############
-def customers_segmentation_query(df):
-    # Filter data for orders in 2003 from USA or France with sales above $5000
-    filtered_data = df[(pd.to_datetime(df['ORDERDATE']).dt.year == 2003) &
-                       ((df['COUNTRY'] == 'USA') | (df['COUNTRY'] == 'France')) &
-                       (df['SALES'] > 5000)]
-    # Group by customer and count number of orders
-    customer_orders = filtered_data.groupby('CUSTOMERNAME')['ORDERNUMBER'].count()
-    # Identify customers with more than 3 orders
-    high_value_customers = customer_orders[customer_orders > 3]
-    return high_value_customers
-
-############[Function to Execute Product Demand Fluctuation]############
-def product_demand_flunctuation(df, product_name,):
-    # Filter data for 2003 with total sales exceeding $100,000 and product price above $80
-    filtered_data = df[(pd.to_datetime(df['ORDERDATE']).dt.year == 2003) &
-                       (df['SALES'] > 100000) &
-                       (df['PRICEEACH'] > 80)]
-    # Group by month and calculate average order quantity for the specified product
-    avg_order_quantity = filtered_data[filtered_data['PRODUCTNAME'] == product_name].groupby(pd.to_datetime(filtered_data['ORDERDATE']).dt.month)['QUANTITYORDERED'].mean()
-    # Get month with highest average order quantity
-    highest_avg_month = avg_order_quantity.idxmax()
-    return highest_avg_month
-
-############[Function to Execute Regional Sales Comparison]############
-def regional_sales_comparison(df, state1, state2,):
-    # Filter data for the two states, shipped orders, and at least 20 units ordered
-    filtered_data = df[((df['STATE'] == state1) | (df['STATE'] == state2)) &
-                       (df['STATUS'] == 'Shipped') &
-                       (df['QUANTITYORDERED'] >= 20) &
-                       (pd.to_datetime(df['ORDERDATE']).dt.year == 2003)]
-    
-    # Group by state and calculate average order value
-    avg_order_value = filtered_data.groupby('STATE')['SALES'].mean()
-    
-    return avg_order_value
-
-############[Function to Execute Order Fulfillment Efficiency]############
-def fulfillment_efficiency(df):
-    # Filter data for orders placed in the first half of 2003
-    filtered_data = df[(pd.to_datetime(df['ORDERDATE']).dt.year == 2003) &
-                       (pd.to_datetime(df['ORDERDATE']).dt.month <= 6)]
-    
-    # Calculate order processing time in days
-    filtered_data['ORDERDATE'] = pd.to_datetime(filtered_data['ORDERDATE'])
-    filtered_data['SHIPPEDDATE'] = pd.to_datetime(filtered_data['SHIPPEDDATE'])
-    filtered_data['PROCESSING_TIME'] = (filtered_data['SHIPPEDDATE'] - filtered_data['ORDERDATE']).dt.days
-    
-    # Filter data for orders shipped within 30 days
-    on_time_shipped = filtered_data[filtered_data['PROCESSING_TIME'] <= 30]
-    
-    # Group by country and calculate proportion of orders shipped on time
-    country_orders = on_time_shipped.groupby('COUNTRY').size()
-    total_orders = filtered_data.groupby('COUNTRY').size()
-    proportion_shipped_on_time = country_orders / total_orders
-    
-    # Filter countries with more than 50 total orders
-    qualified_countries = proportion_shipped_on_time[total_orders > 50]
-    
-    # Get country with the highest proportion of on-time shipments
-    highest_efficiency_country = qualified_countries.idxmax()
-    
-    return highest_efficiency_country
-
-############[Function to Execute Sales Trend Analysis]############
-def sales_trend_analysis(df, product_category,):
-    # Filter data for the product category and year 2003
-    filtered_data = df[(df['PRODUCTCATEGORY'] == product_category) &
-                       (pd.to_datetime(df['ORDERDATE']).dt.year == 2003)]
-    
-    # Group by month and calculate total sales and average price
-    monthly_sales = filtered_data.groupby(pd.to_datetime(df['ORDERDATE']).dt.month)['SALES'].sum()
-    monthly_avg_price = filtered_data.groupby(pd.to_datetime(df['ORDERDATE']).dt.month)['PRICEEACH'].mean()
-    
-    # Calculate percentage change in sales compared to the previous month
-    sales_change = monthly_sales.pct_change()
-    
-    # Find months where sales increased by more than 25% and average price was below $100
-    qualified_months = sales_change[(sales_change > 0.25) & (monthly_avg_price < 100)]
-    
-    return qualified_months.index.tolist()
-
-############-----------------------[End Sales Analysis Clac Function]----------------------------############
-
-
-
-
-
-
-
-############-----------------------[Start Key Details Extractor]----------------------------############
-# Define keywords and rules for each query component
-time_periods = {'first quarter': 1, 'Q1': 1, 'second quarter': 2, 'Q2': 2, 'third quarter': 3, 'Q3': 3, 'fourth quarter': 4, 'Q4': 4}
-order_statuses = ['shipped', 'completed', 'delivered']
-quantity_keywords = ['minimum', 'minimum order', 'minimum order quantity']
-country_names = ['USA', 'France']  # Add more countries as needed
-product_categories = ['electronics', 'clothing', 'furniture']  # Add more categories as needed
-
-# Function to extract time period from the query
-def extract_time_period(doc):
-    for ent in doc.ents:
-        if ent.text.lower() in time_periods:
-            return time_periods[ent.text.lower()]
-    return None
-
-# Function to extract order status from the query
-def extract_order_status(doc):
-    for token in doc:
-        if token.text.lower() in order_statuses:
-            return token.text.lower()
-    return None
-
-# Function to extract minimum order quantity from the query
-def extract_min_order_quantity(doc):
-    for token in doc:
-        if token.text.lower() in quantity_keywords:
-            for child in token.children:
-                if child.pos_ == "NUM" and child.dep_ == "nummod":
-                    return int(child.text)
-    return None
-
-# Function to extract country from the query
-def extract_country(doc):
-    for ent in doc.ents:
-        if ent.text.upper() in country_names:
-            return ent.text.upper()
-    return None
-
-# Function to extract product category from the query
-def extract_product_category(doc):
-    for ent in doc.ents:
-        if ent.text.lower() in product_categories:
-            return ent.text.lower()
-    return None
-
-# Function to extract year from the query
-def extract_year(doc):
-    for ent in doc.ents:
-        if ent.label_ == "DATE" and len(ent.text) == 4:
-            try:
-                return int(ent.text)
-            except ValueError:
-                pass
-    return None
-############-----------------------[End Key Details Extractor]----------------------------############
-
-
-############[Basic Query tokenize function]############
-# def handle_query():
-#     query = request.json['query']
-#     tokens = query.lower().split()  # Convert query to lowercase and split into tokens
-    
-#     # Simple keyword matching to identify query type
-#     if 'top' in tokens and 'earning' in tokens and 'sale' in tokens and 'item' in tokens:
-#         answer = top_earning_sale_item()
-#     elif 'city' in tokens and ('best' in tokens or 'top' in tokens) and 'sales' in tokens:
-#         answer = best_sales_city()
-#     else:
-#         answer = "I'm sorry, I couldn't understand your query."
-    
-#     return jsonify({"answer": answer})

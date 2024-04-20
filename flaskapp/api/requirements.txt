@@ -3,7 +3,9 @@ flask-cors
 Werkzeug==2.2.2
 openai
 pandas
-numpy
-nltk
 gender-guesser
 spacy
+langchain
+langchain_experimental
+langchain-openai
+tabulate
